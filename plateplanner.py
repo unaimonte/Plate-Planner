@@ -22,6 +22,7 @@ from qt_colorbutton import ColorButton
 
 
 basedir = os.path.dirname(__file__)
+platedir = "plates/"
 
 VERSION="1.1.0"
 
@@ -66,7 +67,7 @@ plate_options={
         p3=11.2,
         p4=9.0,
         d=7.0,
-        background_image=os.path.join(basedir,"plateplanner","96well.png")
+        background_image=os.path.join(basedir,platedir,"96well.png")
     ),
     "24-well":PlateDesign(
         id="24-well",
@@ -79,7 +80,7 @@ plate_options={
         p3=14.2,
         p4=19.0,
         d=16.5,
-        background_image=os.path.join(basedir,"plateplanner","24well.png")
+        background_image=os.path.join(basedir,platedir,"24well.png")
     ),
 }
 
@@ -215,7 +216,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.wells=pd.DataFrame()
         self.selected=[]
         self.setWindowTitle("Multiwell Plate Planner")
-        self.setWindowIcon(QtGui.QIcon(os.path.join(basedir,"plateplanner","icon.ico")))
+        self.setWindowIcon(QtGui.QIcon(":/icons/icon.ico"))
         self.setCentralWidget(QtWidgets.QWidget(self))
         self.central_layout=QtWidgets.QGridLayout(self.centralWidget())
         self.sidepanel=QtWidgets.QGroupBox(self)
@@ -232,7 +233,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.signature=QtWidgets.QLabel(self)
         self.signature.setStyleSheet("QLabel{font-size: 10px; color: #888888}")
         self.signature.setText(f"Plate Planner {VERSION} by Unai Montejo")
-        self.central_layout.addWidget(self.signature,1,0,1,2,QtCore.Qt.AlignmentFlag.AlignBottom|QtCore.Qt.AlignmentFlag.AlignRight)
+        self.central_layout.addWidget(self.signature,1,0,1,3,QtCore.Qt.AlignmentFlag.AlignBottom|QtCore.Qt.AlignmentFlag.AlignRight)
 
         self.fill_button=ColorButton(self)
         self.fill_button.setMinimumWidth(100)

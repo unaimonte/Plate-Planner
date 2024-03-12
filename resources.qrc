@@ -14,7 +14,7 @@
       <file>roboto/Roboto-Thin.ttf</file>
       <file>roboto/Roboto-ThinItalic.ttf</file>
   </qresource>
-  <qresource prefix="/icons">
+  <qresource>
     <file>icons/disabled/tab_close.svg</file>
     <file>icons/disabled/leftarrow.svg</file>
     <file>icons/disabled/rightarrow.svg</file>
