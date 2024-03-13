@@ -2,10 +2,13 @@
 
 
 a = Analysis(
-    ['plateplanner.py'],
+    ['plateplanner/runner.py'],
     pathex=[],
     binaries=[],
-    datas=[("plateplanner","plateplanner")],
+    datas=[
+        ("plateplanner/plates","plateplanner/plates"),
+        ("plateplanner/resources/icons/plateplanner.icns","."),
+        ],
     hiddenimports=[],
     hookspath=[],
     hooksconfig={},
@@ -44,6 +47,6 @@ coll = COLLECT(
 app = BUNDLE(
     coll,
     name='Plate Planner.app',
-    icon="plateplanner/plateplanner.icns",
+    icon="plateplanner/resources/icons/plateplanner.icns",
     bundle_identifier=None,
 )

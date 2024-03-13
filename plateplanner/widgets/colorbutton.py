@@ -2,7 +2,7 @@ from PySide6 import QtWidgets,QtGui,QtCore
 from PySide6.QtCore import Signal
 from PySide6.QtGui import QPaintEvent, QPalette
 import numpy as np
-from matplotlib.colors import to_hex,to_rgb,rgb_to_hsv,hsv_to_rgb
+from matplotlib import colors
 
 class ColorButton(QtWidgets.QPushButton):
     colorChanged = Signal(object)
@@ -41,24 +41,24 @@ class ColorButton(QtWidgets.QPushButton):
             return [0,0,0]
         
     def hoverColor(self,color):
-        hsv=rgb_to_hsv(color)
+        hsv=colors.rgb_to_hsv(color)
         if hsv[2]>=0.7:
             hsv[2] -= 0.07
         else:
             hsv[2] += 0.15
-        return hsv_to_rgb(hsv)
+        return colors.hsv_to_rgb(hsv)
     
     def sunkenColor(self,color):
-        hsv=rgb_to_hsv(color)
+        hsv=colors.rgb_to_hsv(color)
         if hsv[2]>=0.7:
             hsv[2] -= 0.15
         else:
             hsv[2] += 0.1
-        return hsv_to_rgb(hsv)
+        return colors.hsv_to_rgb(hsv)
 
     def setColor(self,color):
         if isinstance(color,list): color=color[0]
-        self._color=to_rgb(color)
+        self._color=colors.to_rgb(color)
         self.buttonFormat()
         self.setText(self.getColorHex())
 
@@ -66,7 +66,7 @@ class ColorButton(QtWidgets.QPushButton):
         return self._color
 
     def getColorHex(self):
-        return to_hex(self._color)
+        return colors.to_hex(self._color)
     
     def buttonFormat(self):
         disabled_opacity=0.3
@@ -121,7 +121,7 @@ def main():
 
 if __name__=="__main__":
     import sys
-    import resources_rc
+    import resources.resources_rc as resources_rc
     app = QtWidgets.QApplication(sys.argv)
     stylesheet=open("my_theme.qss","r")
     app.setStyleSheet(stylesheet.read())

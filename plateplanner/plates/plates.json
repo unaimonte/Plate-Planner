@@ -1,0 +1,28 @@
+{
+    "96-well":{
+        "id":"96-well",
+        "cols":12,
+        "rows":8,
+        "length":127.8,
+        "width":85.5,
+        "p1":14.4,
+        "p2":9.0,
+        "p3":11.2,
+        "p4":9.0,
+        "d":7.0,
+        "background_image":"96well.png"
+    },
+    "24-well":{
+        "id":"24-well",
+        "cols":6,
+        "rows":4,
+        "length":127.8,
+        "width":85.5,
+        "p1":16.4,
+        "p2":19.0,
+        "p3":14.2,
+        "p4":19.0,
+        "d":16.5,
+        "background_image":"24well.png"
+    }
+}

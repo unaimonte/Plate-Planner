@@ -3,7 +3,7 @@ requires = ["setuptools"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "Plate Planner"
+name = "plateplanner"
 description = "Multiwell plate planning tool"
 authors = [
     {name = "Unai Montejo", email = "unaimonte@gmail.com"},
@@ -16,7 +16,3 @@ dependencies = [
     "PySide6",
 ]
 version = "1.1.0"
-
-filterwarnings = [
-    "ignore::DeprecationWarning"
-]
