@@ -33,5 +33,5 @@ jobs:
       with:
         tag_name: "v1.0"
         files: |
-          /dist/Plate Planner.app
+          dist/Plate Planner.app
           requirements.txt
