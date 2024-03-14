@@ -3,8 +3,8 @@ name: Build and release for MacOS
 on:
   push:
     branches: ["main","unaimonte-patch-1"]
-    #tags:
-    #- 'v*' # Push events to matching v*, i.e. v1.0, v20.15
+    tags:
+    - 'v*' # Push events to matching v*, i.e. v1.0, v20.15
 
 permissions:
   contents: write
