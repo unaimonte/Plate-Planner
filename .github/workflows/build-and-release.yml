@@ -25,14 +25,10 @@ jobs:
     - name: Build
       run: |
         pyinstaller plateplanner.spec
-        ls
         cd dist
-        ls
+        zip macos-bundle.zip "Plate Planner.app"
     - name: Release
       uses: softprops/action-gh-release@v2
       with:
         tag_name: "v1.0"
-        files: |
-          Plate Planner.app
-          test file.txt
-          plateplanner/core.py
+        files: dist/macos-bundle.zip
