@@ -1,10 +1,10 @@
-name: Build and release
+name: Build and release for MacOS
 
 on:
   push:
     branches: ["main","unaimonte-patch-1"]
     #tags:
-    #- 'v*' # Push events to matching v*, i.e. v1.0, v20.15.10
+    #- 'v*' # Push events to matching v*, i.e. v1.0, v20.15
 
 permissions:
   contents: write
@@ -24,12 +24,12 @@ jobs:
         pip install pyinstaller
     - name: Build
       run: pyinstaller plateplanner.spec
-    - name: Compress bundle
+    - name: Create DMG image
       run: |
         cd dist
-        zip -r macos-bundle.zip "Plate Planner.app"
+        rm -r "Plate Planner"
+        hdiutil create -volname "Plate Planner" -srcfolder "." -ov -format UDZO "plateplanner-macos-universal.dmg" 
     - name: Release
       uses: softprops/action-gh-release@v2
       with:
-        tag_name: "v1.0"
-        files: dist/macos-bundle.zip
+        files: dist/plateplanner-macos-universal.dmg
