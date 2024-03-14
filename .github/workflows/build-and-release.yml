@@ -25,6 +25,9 @@ jobs:
     - name: Build
       run: |
         pyinstaller plateplanner.spec
+        ls
+        cd dist
+        ls
     - name: Release
       uses: softprops/action-gh-release@v2
       with:
