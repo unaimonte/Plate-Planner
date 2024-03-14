@@ -23,10 +23,11 @@ jobs:
         pip install -r requirements.txt
         pip install pyinstaller
     - name: Build
+      run: pyinstaller plateplanner.spec
+    - name: Compress bundle
       run: |
-        pyinstaller plateplanner.spec
         cd dist
-        zip macos-bundle.zip "Plate Planner.app"
+        zip -r macos-bundle.zip "Plate Planner.app"
     - name: Release
       uses: softprops/action-gh-release@v2
       with:
