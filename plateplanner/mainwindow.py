@@ -6,6 +6,7 @@ from PySide6 import QtWidgets, QtCore, QtGui
 from matplotlib.typing import ColorType
 from matplotlib.figure import Figure
 from matplotlib import colors, patches
+from enum import Enum,auto
 import matplotlib.pyplot as plt
 import matplotlib.backends.backend_pdf #SI SE ELIMINA NO SE INCLUYE EN EL PAQUETE!!!!!
 import matplotlib.backends.backend_svg #SI SE ELIMINA NO SE INCLUYE EN EL PAQUETE!!!!!
@@ -15,10 +16,12 @@ from plateplanner.widgets.legendview import LegendView
 
 L_LEGEND=30
 
-LINEWIDTH=1
-
 class MainWindow(QtWidgets.QMainWindow):
+    class SelectionMode(Enum):
+        WELLS=auto()
+        GROUPS=auto()
     selected:list[tuple[int]]
+    selection_mode:SelectionMode=SelectionMode.WELLS
     def __init__(self, options:dict[str,core.PlateDesign], design: Optional[core.PlateDesign]=None) -> None:
         super().__init__()
         if design is None:
@@ -57,7 +60,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.fill_button=ColorButton(self)
         self.fill_button.setMinimumWidth(100)
         self.fill_button.setColor("w")
-        self.fill_button.colorChanged.connect(self.paint_fill)
+        self.fill_button.colorChanged.connect(self.paint_face)
         self.form_layout.addRow("Fill",self.fill_button)
 
         self.edge_button=ColorButton(self)
@@ -72,13 +75,9 @@ class MainWindow(QtWidgets.QMainWindow):
         self.hatch_cb.currentTextChanged.connect(self.paint_hatches)
         self.form_layout.addRow("Hatching",self.hatch_cb)
 
-        self.export_button=QtWidgets.QPushButton("Export",self)
-        self.export_button.clicked.connect(self.export)
-        self.sidepanel_layout.addWidget(self.export_button)
-
-        self.save_button=QtWidgets.QPushButton("Save as",self)
-        self.save_button.clicked.connect(self.save_as)
-        self.sidepanel_layout.addWidget(self.save_button)
+        self.selection_mode_cb=QtWidgets.QComboBox(self)
+        self.selection_mode_cb.addItems(["Wells","Groups"])
+        self.selection_mode_cb.currentIndexChanged.connect(self.selection_mode_changed)
 
         self.canvas=core.Canvas(parent=self)
         self.canvas.areaSelected.connect(self.select_area)
@@ -106,8 +105,11 @@ class MainWindow(QtWidgets.QMainWindow):
         self.create_plate()
         self.update_legend()
 
+    def selection_mode_changed(self, index):
+        self.selection_mode=index
+
     def update_legend(self):
-        current_styles=self.wells["style"].unique()
+        current_styles=[well.style for well in self.wells.unique()]
 
         #add newly created styles to LegendView
         for s in current_styles:
@@ -118,7 +120,6 @@ class MainWindow(QtWidgets.QMainWindow):
         for s in self.legendview.styles:
             if s not in current_styles:
                 self.legendview.remove(s)
-        
 
     def select_area(self,p0:QtCore.QPoint,p1:QtCore.QPoint):
         dpi=self.physicalDpiX()
@@ -152,12 +153,11 @@ class MainWindow(QtWidgets.QMainWindow):
                 
     def select_wells(self,selection:list[tuple[int]]):
         for i in self.selected:
-            self.wells.loc[i,"artist"].set_linestyle("solid")
+            self.wells.loc[i].set_linestyle("solid")
 
         self.selected=selection
         for i in selection:
-            well=self.wells.loc[i]["artist"]
-            well.set_linestyle("dashed")
+            self.wells.loc[i].set_linestyle("dashed")
 
         self.canvas.draw_idle()
 
@@ -227,25 +227,22 @@ class MainWindow(QtWidgets.QMainWindow):
         qimage = QtGui.QImage.rgbSwapped(QtGui.QImage(buf, size[0], size[1], QtGui.QImage.Format_ARGB32))
         QtWidgets.QApplication.clipboard().setImage(qimage)
 
-    def paint_fill(self, color:ColorType):
+    def paint_face(self, color:ColorType):
         for i in self.selected:
-            self.wells.loc[i,"artist"].set_facecolor(color)
-            self.wells.loc[i,"style"].facecolor=color
+            self.wells.loc[i].facecolor=color
         self.select_wells([])
         self.update_legend()
 
     def paint_edge(self, color:ColorType):
         color=colors.to_hex(color)
         for i in self.selected:
-            self.wells.loc[i,"artist"].set_edgecolor(color)
-            self.wells.loc[i,"style"].edgecolor=color
+            self.wells.loc[i].edgecolor=color
         self.select_wells([])
         self.update_legend()
 
     def paint_hatches(self, hatch:str):
         for i in self.selected:
-            self.wells.loc[i,"artist"].set_hatch(hatch)
-            self.wells.loc[i,"style"].hatching=hatch
+            self.wells.loc[i].hatching=hatch
         self.select_wells([])
         self.update_legend()
 
@@ -257,10 +254,9 @@ class MainWindow(QtWidgets.QMainWindow):
         fig.set_dpi(self.physicalDpiX())
         self.figure=fig
         self.canvas.figure=fig
-        items=self.init_figure(fig,wells=wells)
-        self.wells=pd.DataFrame(items).set_index(["row","column"])
+        self.wells=self.init_figure(fig,wells=wells)
 
-    def init_figure(self,fig:Figure, wells:pd.Series=None)->list[dict]:
+    def init_figure(self,fig:Figure, wells:pd.Series=None)->pd.DataFrame:
         ax=fig.gca()
         ax.axis('off')
 
@@ -283,30 +279,24 @@ class MainWindow(QtWidgets.QMainWindow):
             img = plt.imread(self.design.background_image)
             ax.imshow(img, aspect="auto", interpolation="antialiased", extent=(0,self.design.length,self.design.width,0))
 
-        items=[]
+        rows=[]
         for row in range(self.design.rows):
+            column=[]
             for col in range(self.design.cols):
                 x=self.design.p2*col+self.design.p1
                 y=self.design.p4*row+self.design.p3
                 if wells is None:
-                    style=core.Style()
+                    style=None
                 else:
-                    style=core.Style.from_str(wells.loc[row,col])
-                cir=patches.Circle(
-                    (x,y),
-                    self.design.d/2,
-                    linewidth=LINEWIDTH, 
-                    facecolor=style.facecolor,
-                    edgecolor=style.edgecolor,
-                    hatch=style.hatching,
-                    )
-                ax.add_artist(cir)
-                items.append(dict(
-                    row=row,
-                    column=col,
-                    artist=cir,
+                    style=wells.loc[row,col]
+                well=core.Well(
+                    pos=(x,y),
+                    design=self.design,
                     style=style
-                ))
+                    )
+                ax.add_artist(well)
+                column.append(well)
+            rows.append(column)
         ax.set_xlim(0,self.design.length)
         ax.set_ylim(self.design.width,0)
-        return items
+        return pd.DataFrame(rows).stack()

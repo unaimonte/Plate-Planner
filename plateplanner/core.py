@@ -8,6 +8,8 @@ from typing import override,Optional,Self
 from PySide6 import QtCore,QtWidgets,QtGui
 from matplotlib.colors import to_hex
 from matplotlib.typing import ColorType
+from matplotlib.patches import Circle
+from matplotlib.backend_bases import PickEvent
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg
 from plateplanner import PLATEDIR
 
@@ -16,6 +18,7 @@ VERSION="1.1.0"
 FACECOLOR="#ffffff"
 EDGECOLOR="#000000"
 HATCHING=""
+LINEWIDTH=1
 
 StyleStr=str
 
@@ -91,13 +94,68 @@ class StyleEncoder(json.JSONEncoder):
         if isinstance(obj, Style):
             return str(obj)
         return super().default(obj)
+
+class Well(Circle):
+    def __init__(self,pos:tuple[float,float], design:PlateDesign, style:Style|str=None):
+        self.design=design
+        if style is None: style=Style()
+        elif isinstance(style, str): style=Style.from_str(style)
+        self.style=style
+        super().__init__(
+            xy=pos,
+            radius=design.d/2,
+            linewidth=LINEWIDTH, 
+            facecolor=style.facecolor,
+            edgecolor=style.edgecolor,
+            hatch=style.hatching,
+            picker=True,
+        )
+
+    @property
+    def facecolor(self) -> str:
+        return self.style.facecolor
     
+    @facecolor.setter
+    def facecolor(self, c:ColorType):
+        self.style.facecolor=c
+        self.set_facecolor(self.style.facecolor)
+    
+    @property
+    def edgecolor(self) -> str:
+        return self.style.edgecolor
+    
+    @edgecolor.setter
+    def edgecolor(self, c:ColorType):
+        self.style.edgecolor=c
+        self.set_edgecolor(self.style.edgecolor)
+
+    @property
+    def hatching(self) -> str:
+        return self.style.hatching
+    
+    @hatching.setter
+    def hatching(self, h:str):
+        self.style.hatching=h
+        self.set_hatch(self.style.hatching)
+        
+    def __str__(self) -> StyleStr:
+        return str(self.style)
+    
+    def __hash__(self) -> int:
+        return hash(self.style)
+
+    def __eq__(self,other) -> bool:
+        return str(self) == str(other)
+    
+
+
 class Canvas(FigureCanvasQTAgg, QtWidgets.QWidget):
     start_pos:QtCore.QPoint|None=None
     current_pos:QtCore.QPoint|None=None
     areaSelected=QtCore.Signal(QtCore.QPoint,QtCore.QPoint)
     editStarted=QtCore.Signal(QtCore.QRect,str,int)
     editEnded=QtCore.Signal()
+    wellPicked=QtCore.Signal(Well)
     editing=False
 
     def __init__(self, figure=None, parent=QtWidgets.QWidget|None):
@@ -105,6 +163,7 @@ class Canvas(FigureCanvasQTAgg, QtWidgets.QWidget):
         self.setSizePolicy(QtWidgets.QSizePolicy.Fixed,QtWidgets.QSizePolicy.Fixed)
         self.setParent(parent)
         self.setMouseTracking(False)
+        self.mpl_connect('pick_event', self.on_pick)
 
     @override
     def mousePressEvent(self, event:QtGui.QMouseEvent):
@@ -146,8 +205,8 @@ class Canvas(FigureCanvasQTAgg, QtWidgets.QWidget):
             p.setPen(pen)
             p.drawRect(selection_rect)
 
-    def showEvent(self, event):
-        super().showEvent(event)
+    def on_pick(self,event:PickEvent):
+        self.wellPicked.emit(event.artist)
         
 class FileManager:
     path:pathlib.Path=None
