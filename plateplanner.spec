@@ -7,7 +7,6 @@ a = Analysis(
     binaries=[],
     datas=[
         ("plateplanner/plates","plateplanner/plates"),
-        ("plateplanner/resources/icons/plateplanner.icns","."),
         ],
     hiddenimports=[],
     hookspath=[],
@@ -34,6 +33,7 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
+    icon="plateplanner/resources/icons/icon.ico",
 )
 coll = COLLECT(
     exe,
