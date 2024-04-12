@@ -90,4 +90,4 @@ ENV/
 .ropeproject
 
 # MacOS stuff
-*.DS_Store
+.DS_Store
