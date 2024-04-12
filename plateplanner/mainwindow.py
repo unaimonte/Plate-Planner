@@ -18,9 +18,9 @@ L_LEGEND=30
 
 class MainWindow(QtWidgets.QMainWindow):
     class SelectionMode(Enum):
-        WELLS=auto()
-        GROUPS=auto()
-    selected:list[tuple[int]]
+        WELLS="Wells"
+        GROUPS="Groups"
+    selected:list[core.Well]
     selection_mode:SelectionMode=SelectionMode.WELLS
     def __init__(self, options:dict[str,core.PlateDesign], design: Optional[core.PlateDesign]=None) -> None:
         super().__init__()
@@ -35,7 +35,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
         self.plate_options=options
         self.filemanager=core.FileManager(self)
-        self.wells=pd.DataFrame()
+        self.wells=pd.Series()
         self.selected=[]
         self.setWindowTitle("Multiwell Plate Planner")
         self.setWindowIcon(QtGui.QIcon(":/icons/icon.ico"))
@@ -75,9 +75,11 @@ class MainWindow(QtWidgets.QMainWindow):
         self.hatch_cb.currentTextChanged.connect(self.paint_hatches)
         self.form_layout.addRow("Hatching",self.hatch_cb)
 
+        self.sidepanel_layout.addWidget(QtWidgets.QLabel("Selection mode:"),alignment=QtCore.Qt.AlignmentFlag.AlignBottom)
         self.selection_mode_cb=QtWidgets.QComboBox(self)
-        self.selection_mode_cb.addItems(["Wells","Groups"])
-        self.selection_mode_cb.currentIndexChanged.connect(self.selection_mode_changed)
+        self.selection_mode_cb.addItems([e.value for e in self.SelectionMode])
+        self.selection_mode_cb.currentTextChanged.connect(self.selection_mode_changed)
+        self.sidepanel_layout.addWidget(self.selection_mode_cb)
 
         self.canvas=core.Canvas(parent=self)
         self.canvas.areaSelected.connect(self.select_area)
@@ -106,20 +108,19 @@ class MainWindow(QtWidgets.QMainWindow):
         self.update_legend()
 
     def selection_mode_changed(self, index):
-        self.selection_mode=index
+        self.selection_mode=self.SelectionMode(index)
 
     def update_legend(self):
         current_styles=[well.style for well in self.wells.unique()]
-
         #add newly created styles to LegendView
-        for s in current_styles:
-            if s in self.legendview.styles: continue
-            self.legendview.add(s)
+        for style in current_styles:
+            if style in self.legendview.styles: continue
+            self.legendview.add(style)
         
         #remove unused styles from legendview
-        for s in self.legendview.styles:
-            if s not in current_styles:
-                self.legendview.remove(s)
+        for style in self.legendview.styles:
+            if style not in current_styles:
+                self.legendview.remove(style)
 
     def select_area(self,p0:QtCore.QPoint,p1:QtCore.QPoint):
         dpi=self.physicalDpiX()
@@ -133,11 +134,12 @@ class MainWindow(QtWidgets.QMainWindow):
         p2_px=self.design.p2/25.4*dpi
         p3_px=self.design.p3/25.4*dpi
         p4_px=self.design.p4/25.4*dpi
+        r_px=self.design.d/25.4*dpi/2
 
-        min_col=int((left-p1_px)//p2_px+1)
-        max_col=int((right-p1_px)//p2_px+1)
-        min_row=int((top-p3_px)//p4_px+1)
-        max_row=int((bottom-p3_px)//p4_px+1)
+        min_col=int((left-p1_px-r_px)//p2_px+1)
+        max_col=int((right-p1_px+r_px)//p2_px+1)
+        min_row=int((top-p3_px-r_px)//p4_px+1)
+        max_row=int((bottom-p3_px+r_px)//p4_px+1)
 
         if min_col<0: min_col=0
         if max_col>self.design.cols: max_col=self.design.cols
@@ -145,24 +147,38 @@ class MainWindow(QtWidgets.QMainWindow):
         if max_row>self.design.rows: max_row=self.design.rows
 
         selection=[]
-        for right in range(min_row,max_row):
+        for r in range(min_row,max_row):
             for c in range(min_col,max_col):
-                selection.append((right,c))
+                selection.append(self.wells.loc[r,c])
 
-        self.select_wells(selection)
+        self.legendview.clear_selection()
+        match self.selection_mode:
+            case self.SelectionMode.WELLS:
+                self.select_wells(selection)
+            case self.SelectionMode.GROUPS:
+                self.select_groups(selection)
+
+    def select_groups(self,selection:list[core.Well]):
+        extended_selection=[]
+        for w in selection:
+            wells=self.wells.loc[self.wells==w.style].values
+            extended_selection.extend(wells)
+            #i=self.legendview.styles.index(w.style)
+            #self.legendview.item(i).setSelected(True)
+
+        self.select_wells(extended_selection)
                 
-    def select_wells(self,selection:list[tuple[int]]):
-        for i in self.selected:
-            self.wells.loc[i].set_linestyle("solid")
-
+    def select_wells(self,selection:list[core.Well]=None):
+        if selection is None: selection=[]
+        for well in self.selected:
+            well.set_selected(False)
+        for well in selection:
+            well.set_selected(True)
         self.selected=selection
-        for i in selection:
-            self.wells.loc[i].set_linestyle("dashed")
-
         self.canvas.draw_idle()
-
+        
     def export(self):
-        self.select_wells([])
+        self.select_wells()
         export_path = QtWidgets.QFileDialog.getSaveFileName(
             self, 
             caption="Export figure",
@@ -174,7 +190,7 @@ class MainWindow(QtWidgets.QMainWindow):
             size_inches=((self.design.length+L_LEGEND)/25.4,self.design.width/25.4)
             fig=plt.figure(figsize=size_inches,dpi=200)
             fig.gca().set_position((0,0,1-L_LEGEND/(L_LEGEND+self.design.length),1))
-            self.init_figure(fig,self.wells["style"].map(str))
+            self.init_figure(fig,self.wells.map(str))
 
             fig.gca().legend(handles=self.legendview.handles,labels=self.legendview.labels,loc="upper left",bbox_to_anchor=(1,1))
             fig.savefig(export_path,dpi=300,pad_inches=0,metadata={"Creator": "Plate Planner"})
@@ -198,7 +214,7 @@ class MainWindow(QtWidgets.QMainWindow):
             data={
                 "plate": self.design.id,
                 "legend": self.legendview.as_dict(),
-                "wells": self.wells["style"].unstack().to_dict()
+                "wells": self.wells.unstack().to_dict()
             }
             self.filemanager.save(data)
 
@@ -210,7 +226,7 @@ class MainWindow(QtWidgets.QMainWindow):
             filter="Plate (*.plate)",
             )[0])
         if path !="":
-            self.select_wells([])
+            self.select_wells()
             data=self.filemanager.open(path)
             self.design=self.plate_options[data["plate"]]
             self.create_plate(data["wells"])
@@ -228,22 +244,22 @@ class MainWindow(QtWidgets.QMainWindow):
         QtWidgets.QApplication.clipboard().setImage(qimage)
 
     def paint_face(self, color:ColorType):
-        for i in self.selected:
-            self.wells.loc[i].facecolor=color
-        self.select_wells([])
+        for well in self.selected:
+            well.facecolor=color
+        self.select_wells()
         self.update_legend()
 
     def paint_edge(self, color:ColorType):
         color=colors.to_hex(color)
-        for i in self.selected:
-            self.wells.loc[i].edgecolor=color
-        self.select_wells([])
+        for well in self.selected:
+            well.edgecolor=color
+        self.select_wells()
         self.update_legend()
 
     def paint_hatches(self, hatch:str):
-        for i in self.selected:
-            self.wells.loc[i].hatching=hatch
-        self.select_wells([])
+        for well in self.selected:
+            well.hatching=hatch
+        self.select_wells()
         self.update_legend()
 
     def create_plate(self,wells:pd.Series=None):
@@ -256,7 +272,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.canvas.figure=fig
         self.wells=self.init_figure(fig,wells=wells)
 
-    def init_figure(self,fig:Figure, wells:pd.Series=None)->pd.DataFrame:
+    def init_figure(self,fig:Figure, wells:pd.Series=None)->pd.Series:
         ax=fig.gca()
         ax.axis('off')
 

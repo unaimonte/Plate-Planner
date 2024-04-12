@@ -89,13 +89,14 @@ class Style:
     def from_str(cls, s:str)->Self:
         return cls(*s.split(":"))
 
-class StyleEncoder(json.JSONEncoder):
+class WellEncoder(json.JSONEncoder):
     def default(self, obj):
-        if isinstance(obj, Style):
+        if isinstance(obj, Well):
             return str(obj)
         return super().default(obj)
 
 class Well(Circle):
+    selected=False
     def __init__(self,pos:tuple[float,float], design:PlateDesign, style:Style|str=None):
         self.design=design
         if style is None: style=Style()
@@ -108,8 +109,19 @@ class Well(Circle):
             facecolor=style.facecolor,
             edgecolor=style.edgecolor,
             hatch=style.hatching,
-            picker=True,
+            zorder=10,
         )
+        self.shadow=Circle(
+            xy=pos,
+            radius=1.2*design.d/2,
+            linewidth=0,
+            facecolor="#00000020",
+            zorder=5
+            )
+        
+    def set_selected(self, b:bool) -> None:
+        if self.shadow.axes is None: self.axes.add_artist(self.shadow)
+        self.shadow.set_visible(b)
 
     @property
     def facecolor(self) -> str:
@@ -153,22 +165,16 @@ class Canvas(FigureCanvasQTAgg, QtWidgets.QWidget):
     start_pos:QtCore.QPoint|None=None
     current_pos:QtCore.QPoint|None=None
     areaSelected=QtCore.Signal(QtCore.QPoint,QtCore.QPoint)
-    editStarted=QtCore.Signal(QtCore.QRect,str,int)
-    editEnded=QtCore.Signal()
-    wellPicked=QtCore.Signal(Well)
-    editing=False
 
     def __init__(self, figure=None, parent=QtWidgets.QWidget|None):
         super().__init__(figure)
         self.setSizePolicy(QtWidgets.QSizePolicy.Fixed,QtWidgets.QSizePolicy.Fixed)
         self.setParent(parent)
         self.setMouseTracking(False)
-        self.mpl_connect('pick_event', self.on_pick)
 
     @override
     def mousePressEvent(self, event:QtGui.QMouseEvent):
         pos=event.position().toPoint()
-        self.editEnded.emit()
         self.start_pos=pos
         return super().mousePressEvent(event)
 
@@ -176,6 +182,7 @@ class Canvas(FigureCanvasQTAgg, QtWidgets.QWidget):
     def mouseMoveEvent(self, event:QtGui.QMouseEvent):
         self.current_pos=event.position().toPoint()
         self.update()
+        return super().mouseMoveEvent(event)
         
     @override
     def mouseReleaseEvent(self, event:QtGui.QMouseEvent):
@@ -204,9 +211,6 @@ class Canvas(FigureCanvasQTAgg, QtWidgets.QWidget):
             pen=QtGui.QPen(QtCore.Qt.black,1)
             p.setPen(pen)
             p.drawRect(selection_rect)
-
-    def on_pick(self,event:PickEvent):
-        self.wellPicked.emit(event.artist)
         
 class FileManager:
     path:pathlib.Path=None
@@ -218,7 +222,7 @@ class FileManager:
 
     def save(self, data: dict):
         with open(self.path, "w") as file:
-            json.dump(data,file,indent=4,cls=StyleEncoder)
+            json.dump(data,file,indent=4,cls=WellEncoder)
 
     def open(self,path:pathlib.Path)->dict:
         self.set_path(path)

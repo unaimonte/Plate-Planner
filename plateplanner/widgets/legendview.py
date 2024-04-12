@@ -13,9 +13,11 @@ class LegendView(QtWidgets.QListWidget):
         self.setIconSize(QtCore.QSize(35,20))
         self.setEditTriggers(QtWidgets.QAbstractItemView.EditTrigger.DoubleClicked)
         self.setDragDropMode(QtWidgets.QAbstractItemView.DragDropMode.InternalMove)
+        #self.setSelectionMode(QtWidgets.QAbstractItemView.SelectionMode.SingleSelection)
 
-    def add(self, style:core.Style|str, label:str="group"):
+    def add(self, style:core.Style|str, label:str=None):
         if isinstance(style, str): style=core.Style.from_str(style)
+        if label is None: label="group"
 
         handle,pm=self.create_handle(
                 size=self.iconSize(),
@@ -53,6 +55,10 @@ class LegendView(QtWidgets.QListWidget):
     
     def remove(self, style:core.Style) -> None:
         self.takeItem(self.styles.index(style))
+
+    def clear_selection(self) -> None:
+        for item in self.items:
+            item.setSelected(False)
     
     @staticmethod
     def create_handle(size:QtCore.QSize, dpi=100, **kwargs)->tuple[Patch,QtGui.QPixmap]:
